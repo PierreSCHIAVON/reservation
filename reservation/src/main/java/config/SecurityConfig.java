@@ -1,0 +1,50 @@
+package config;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter
+    ) throws Exception {
+
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // ultra explicite (debug)
+                        .requestMatchers(HttpMethod.GET, "/api/public/ping").permitAll()
+
+                        // endpoints publics
+                        .requestMatchers("/api/public/**").permitAll()
+
+                        // actuator health public
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+
+                        // tout le reste nécessite un token
+                        .anyRequest().authenticated()
+                )
+                // Resource Server : validation de JWT émis par Keycloak
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
+        return jwt -> new JwtAuthenticationToken(jwt, KeycloakRolesExtractor.extractRealmRoles(jwt));
+    }
+}

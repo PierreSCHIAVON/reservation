@@ -1,0 +1,48 @@
+{
+  "realm": "reservation",
+  "enabled": true,
+  "displayName": "Reservation",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+
+  "roles": {
+    "realm": [
+      { "name": "USER", "description": "Standard user (tenant)" },
+      { "name": "OWNER", "description": "Property owner" },
+      { "name": "ADMIN", "description": "Administrator" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "reservation-frontend",
+      "name": "Reservation Frontend",
+      "enabled": true,
+
+      "protocol": "openid-connect",
+      "publicClient": true,
+
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+
+      "rootUrl": "http://localhost:4200",
+      "baseUrl": "/",
+
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/*"
+      }
+    }
+  ]
+}
