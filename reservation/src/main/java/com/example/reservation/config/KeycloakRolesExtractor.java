@@ -1,9 +1,11 @@
-package config;
+package com.example.reservation.config;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.*;
+
 public class KeycloakRolesExtractor {
     private KeycloakRolesExtractor() {}
 
