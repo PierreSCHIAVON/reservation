@@ -44,3 +44,36 @@ docker compose down
 ```bash
 docker compose down -v
 ```
+
+## Développement local
+
+Pour développer en local avec hot-reload tout en utilisant les services Docker (PostgreSQL, Keycloak).
+
+### 1. Lancer les services (sans le backend)
+
+```bash
+docker compose -f docker-compose-dev.yml up -d
+```
+
+### 2. Lancer le backend en local
+
+```bash
+cd reservation
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Ou depuis votre IDE avec le profil `local`.
+
+### 3. Accès
+
+| Service | URL |
+|---------|-----|
+| Backend | http://localhost:8080 |
+| Keycloak | http://localhost:8081 |
+| Keycloak Admin | http://localhost:8081/admin (admin/admin) |
+
+### 4. Arrêter les services
+
+```bash
+docker compose -f docker-compose-dev.yml down
+```

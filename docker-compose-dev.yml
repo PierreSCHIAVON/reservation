@@ -1,3 +1,7 @@
+# Docker Compose pour le développement local
+# Lance uniquement les services (PostgreSQL, Keycloak) sans le backend
+# Le backend est lancé en local avec: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+
 services:
   postgres:
     image: postgres:16
@@ -8,6 +12,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -46,9 +52,6 @@ services:
 
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
-      KC_HOSTNAME: host.docker.internal
-      KC_HOSTNAME_PORT: 8081
-      KC_HOSTNAME_STRICT: "false"
     ports:
       - "${KEYCLOAK_PORT}:8080"
     volumes:
@@ -59,24 +62,6 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
-
-  backend:
-    build:
-      context: ./reservation
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      keycloak:
-        condition: service_started
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}
-    ports:
-      - "${BACKEND_PORT}:8080"
 
 volumes:
   pg_data:

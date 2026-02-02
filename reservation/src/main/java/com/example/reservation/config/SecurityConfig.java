@@ -7,6 +7,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,11 +26,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ultra explicite (debug)
-                        .requestMatchers(HttpMethod.GET, "/api/public/ping").permitAll()
-
                         // endpoints publics
                         .requestMatchers("/api/public/**").permitAll()
+
+                        // Liste des propriétés (lecture publique)
+                        .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
 
                         // actuator health public
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
@@ -47,5 +50,10 @@ public class SecurityConfig {
     @Bean
     public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
         return jwt -> new JwtAuthenticationToken(jwt, KeycloakRolesExtractor.extractRealmRoles(jwt));
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
