@@ -3,6 +3,7 @@ package com.example.reservation.service;
 import com.example.reservation.domain.property.Property;
 import com.example.reservation.domain.property.PropertyStatus;
 import com.example.reservation.repository.PropertyRepository;
+import com.example.reservation.repository.ReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class PropertyService {
 
     private final PropertyRepository propertyRepository;
+    private final ReservationRepository reservationRepository;
 
     public Property findById(UUID id) {
         return propertyRepository.findById(id)
@@ -100,8 +102,7 @@ public class PropertyService {
     }
 
     public boolean hasOverlappingReservation(UUID propertyId, LocalDate startDate, LocalDate endDate) {
-        Property property = findById(propertyId);
-        return property.hasOverlap(startDate, endDate);
+        return reservationRepository.existsOverlappingReservation(propertyId, startDate, endDate);
     }
 
     @Transactional

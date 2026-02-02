@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -64,16 +65,11 @@ public class PropertyController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
     public PropertyDto.Response updateProperty(
-            @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
             @Valid @RequestBody PropertyDto.UpdateRequest request
     ) {
-        // Vérifier que l'utilisateur est propriétaire
-        if (!propertyService.isOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
         Property property = propertyService.update(
                 id,
                 request.title(),
@@ -86,38 +82,20 @@ public class PropertyController {
     }
 
     @PostMapping("/{id}/activate")
-    public PropertyDto.Response activateProperty(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        if (!propertyService.isOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    public PropertyDto.Response activateProperty(@PathVariable UUID id) {
         return PropertyDto.Response.from(propertyService.activate(id));
     }
 
     @PostMapping("/{id}/deactivate")
-    public PropertyDto.Response deactivateProperty(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        if (!propertyService.isOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    public PropertyDto.Response deactivateProperty(@PathVariable UUID id) {
         return PropertyDto.Response.from(propertyService.deactivate(id));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProperty(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        if (!propertyService.isOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    public ResponseEntity<Void> deleteProperty(@PathVariable UUID id) {
         propertyService.delete(id);
         return ResponseEntity.noContent().build();
     }

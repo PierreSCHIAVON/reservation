@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -47,16 +48,8 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ReservationDto.Response cancelReservation(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        // Le locataire ou le propriétaire peut annuler
-        if (!reservationService.isTenant(id, jwt.getSubject()) &&
-            !reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas autorisé à annuler cette réservation");
-        }
-
+    @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
+    public ReservationDto.Response cancelReservation(@PathVariable UUID id) {
         return ReservationDto.Response.from(reservationService.cancel(id));
     }
 
@@ -81,54 +74,36 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/confirm")
-    public ReservationDto.Response confirmReservation(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        if (!reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    public ReservationDto.Response confirmReservation(@PathVariable UUID id) {
         return ReservationDto.Response.from(reservationService.confirm(id));
     }
 
     @PostMapping("/{id}/complete")
-    public ReservationDto.Response completeReservation(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        if (!reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    public ReservationDto.Response completeReservation(@PathVariable UUID id) {
         return ReservationDto.Response.from(reservationService.complete(id));
     }
 
     @PostMapping("/{id}/discount")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
     public ReservationDto.Response applyDiscount(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
             @Valid @RequestBody ReservationDto.DiscountRequest request
     ) {
-        if (!reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
         return ReservationDto.Response.from(
                 reservationService.applyDiscount(id, request.discountedUnitPrice(), request.reason(), jwt.getSubject())
         );
     }
 
     @PostMapping("/{id}/free")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
     public ReservationDto.Response applyFreeStay(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
             @Valid @RequestBody ReservationDto.FreeStayRequest request
     ) {
-        if (!reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
         return ReservationDto.Response.from(
                 reservationService.applyFreeStay(id, request.reason(), jwt.getSubject())
         );
@@ -137,16 +112,8 @@ public class ReservationController {
     // ===== Common endpoints =====
 
     @GetMapping("/{id}")
-    public ReservationDto.Response getReservation(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID id
-    ) {
-        // Le locataire ou le propriétaire peut voir la réservation
-        if (!reservationService.isTenant(id, jwt.getSubject()) &&
-            !reservationService.isPropertyOwner(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas autorisé à voir cette réservation");
-        }
-
+    @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
+    public ReservationDto.Response getReservation(@PathVariable UUID id) {
         return ReservationDto.Response.from(reservationService.findById(id));
     }
 }

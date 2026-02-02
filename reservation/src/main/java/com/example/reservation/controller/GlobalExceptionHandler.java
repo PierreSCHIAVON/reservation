@@ -1,8 +1,10 @@
 package com.example.reservation.controller;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,6 +31,17 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.FORBIDDEN,
                 ex.getMessage()
+        );
+        problem.setTitle("Accès refusé");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                "Vous n'avez pas les permissions nécessaires pour effectuer cette action"
         );
         problem.setTitle("Accès refusé");
         problem.setProperty("timestamp", Instant.now());
@@ -68,6 +81,17 @@ public class GlobalExceptionHandler {
                 errors
         );
         problem.setTitle("Erreur de validation");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Une contrainte d'intégrité a été violée. Vérifiez que les données ne sont pas dupliquées."
+        );
+        problem.setTitle("Conflit de données");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }

@@ -4,6 +4,9 @@ import com.example.reservation.domain.reservation.PricingType;
 import com.example.reservation.domain.reservation.Reservation;
 import com.example.reservation.domain.reservation.ReservationStatus;
 import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,9 +19,14 @@ public class ReservationDto {
 
     public record CreateRequest(
             @NotNull UUID propertyId,
-            @NotNull LocalDate startDate,
-            @NotNull LocalDate endDate
-    ) {}
+            @NotNull @FutureOrPresent(message = "La date de début doit être aujourd'hui ou dans le futur") LocalDate startDate,
+            @NotNull @Future(message = "La date de fin doit être dans le futur") LocalDate endDate
+    ) {
+        @AssertTrue(message = "La date de fin doit être après la date de début")
+        private boolean isEndDateAfterStartDate() {
+            return startDate == null || endDate == null || endDate.isAfter(startDate);
+        }
+    }
 
     public record DiscountRequest(
             @NotNull @DecimalMin(value = "0.0") BigDecimal discountedUnitPrice,

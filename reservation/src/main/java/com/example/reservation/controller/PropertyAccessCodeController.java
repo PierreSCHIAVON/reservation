@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -24,30 +25,19 @@ public class PropertyAccessCodeController {
     private final PropertyService propertyService;
 
     @GetMapping("/property/{propertyId}")
-    public List<PropertyAccessCodeDto.Response> getAccessCodesForProperty(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID propertyId
-    ) {
-        // Seul le propriétaire peut voir les codes
-        if (!propertyService.isOwner(propertyId, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
+    @PreAuthorize("@authz.isPropertyOwner(#propertyId, authentication.name)")
+    public List<PropertyAccessCodeDto.Response> getAccessCodesForProperty(@PathVariable UUID propertyId) {
         return accessCodeService.findByProperty(propertyId).stream()
                 .map(PropertyAccessCodeDto.Response::from)
                 .toList();
     }
 
     @PostMapping
+    @PreAuthorize("@authz.isPropertyOwner(#request.propertyId(), authentication.name)")
     public ResponseEntity<PropertyAccessCodeDto.CreateResponse> createAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody PropertyAccessCodeDto.CreateRequest request
     ) {
-        // Seul le propriétaire peut créer des codes
-        if (!propertyService.isOwner(request.propertyId(), jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas propriétaire de ce bien");
-        }
-
         PropertyAccessCodeService.PropertyAccessCodeResult result = accessCodeService.create(
                 request.propertyId(),
                 request.email(),
@@ -83,15 +73,11 @@ public class PropertyAccessCodeController {
     }
 
     @PostMapping("/{id}/revoke")
+    @PreAuthorize("@authz.isAccessCodeCreator(#id, authentication.name)")
     public PropertyAccessCodeDto.Response revokeAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id
     ) {
-        // Seul le créateur peut révoquer
-        if (!accessCodeService.isCreator(id, jwt.getSubject())) {
-            throw new ForbiddenException("Vous n'êtes pas autorisé à révoquer ce code");
-        }
-
         return PropertyAccessCodeDto.Response.from(accessCodeService.revoke(id, jwt.getSubject()));
     }
 

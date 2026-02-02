@@ -34,4 +34,9 @@ public interface PropertyAccessCodeRepository extends JpaRepository<PropertyAcce
            "AND pac.revokedAt IS NULL AND pac.redeemedAt IS NULL " +
            "AND (pac.expiresAt IS NULL OR pac.expiresAt > CURRENT_TIMESTAMP)")
     List<PropertyAccessCode> findActiveByEmail(@Param("email") String email);
+
+    // === Authorization queries (optimized for permission checks) ===
+
+    @Query("SELECT COUNT(pac) > 0 FROM PropertyAccessCode pac WHERE pac.id = :id AND pac.createdBySub = :createdBySub")
+    boolean existsByIdAndCreatedBySub(@Param("id") UUID id, @Param("createdBySub") String createdBySub);
 }

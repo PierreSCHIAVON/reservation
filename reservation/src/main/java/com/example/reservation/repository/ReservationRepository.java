@@ -48,6 +48,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             @Param("endDate") LocalDate endDate
     );
 
+    @Query("SELECT COUNT(r) > 0 FROM Reservation r WHERE r.property.id = :propertyId " +
+           "AND r.status IN ('PENDING', 'CONFIRMED') " +
+           "AND r.startDate <= :endDate AND r.endDate >= :startDate")
+    boolean existsOverlappingReservation(
+            @Param("propertyId") UUID propertyId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     @Query("SELECT r FROM Reservation r JOIN FETCH r.property WHERE r.property.ownerSub = :ownerSub")
     List<Reservation> findByPropertyOwnerSub(@Param("ownerSub") String ownerSub);
 
@@ -56,4 +65,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             @Param("ownerSub") String ownerSub,
             @Param("status") ReservationStatus status
     );
+
+    // === Authorization queries (optimized for permission checks) ===
+
+    @Query("SELECT COUNT(r) > 0 FROM Reservation r WHERE r.id = :id AND r.tenantSub = :tenantSub")
+    boolean existsByIdAndTenantSub(@Param("id") UUID id, @Param("tenantSub") String tenantSub);
+
+    @Query("SELECT COUNT(r) > 0 FROM Reservation r WHERE r.id = :id AND r.property.ownerSub = :ownerSub")
+    boolean existsByIdAndPropertyOwnerSub(@Param("id") UUID id, @Param("ownerSub") String ownerSub);
 }

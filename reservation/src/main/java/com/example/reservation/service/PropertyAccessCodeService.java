@@ -5,7 +5,7 @@ import com.example.reservation.domain.property.PropertyAccessCode;
 import com.example.reservation.repository.PropertyAccessCodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +26,8 @@ public class PropertyAccessCodeService {
 
     private final PropertyAccessCodeRepository accessCodeRepository;
     private final PropertyService propertyService;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final PasswordEncoder passwordEncoder;
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     public PropertyAccessCode findById(UUID id) {
         return accessCodeRepository.findById(id)
