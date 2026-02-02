@@ -24,7 +24,7 @@ public class ReservationService {
     private final PropertyService propertyService;
 
     public Reservation findById(UUID id) {
-        return reservationRepository.findById(id)
+        return reservationRepository.findByIdWithProperty(id)
                 .orElseThrow(() -> new EntityNotFoundException("Reservation not found: " + id));
     }
 

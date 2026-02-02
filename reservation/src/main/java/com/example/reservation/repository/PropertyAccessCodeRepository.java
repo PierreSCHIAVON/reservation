@@ -13,20 +13,24 @@ import java.util.UUID;
 @Repository
 public interface PropertyAccessCodeRepository extends JpaRepository<PropertyAccessCode, UUID> {
 
-    Optional<PropertyAccessCode> findByCodeLookup(String codeLookup);
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE pac.codeLookup = :codeLookup")
+    Optional<PropertyAccessCode> findByCodeLookup(@Param("codeLookup") String codeLookup);
 
-    List<PropertyAccessCode> findByPropertyId(UUID propertyId);
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE pac.property.id = :propertyId")
+    List<PropertyAccessCode> findByPropertyId(@Param("propertyId") UUID propertyId);
 
-    List<PropertyAccessCode> findByIssuedToEmailIgnoreCase(String email);
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE LOWER(pac.issuedToEmail) = LOWER(:email)")
+    List<PropertyAccessCode> findByIssuedToEmailIgnoreCase(@Param("email") String email);
 
-    List<PropertyAccessCode> findByCreatedBySub(String createdBySub);
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE pac.createdBySub = :createdBySub")
+    List<PropertyAccessCode> findByCreatedBySub(@Param("createdBySub") String createdBySub);
 
-    @Query("SELECT pac FROM PropertyAccessCode pac WHERE pac.property.id = :propertyId " +
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE pac.property.id = :propertyId " +
            "AND pac.revokedAt IS NULL AND pac.redeemedAt IS NULL " +
            "AND (pac.expiresAt IS NULL OR pac.expiresAt > CURRENT_TIMESTAMP)")
     List<PropertyAccessCode> findActiveByPropertyId(@Param("propertyId") UUID propertyId);
 
-    @Query("SELECT pac FROM PropertyAccessCode pac WHERE pac.issuedToEmail = LOWER(:email) " +
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE LOWER(pac.issuedToEmail) = LOWER(:email) " +
            "AND pac.revokedAt IS NULL AND pac.redeemedAt IS NULL " +
            "AND (pac.expiresAt IS NULL OR pac.expiresAt > CURRENT_TIMESTAMP)")
     List<PropertyAccessCode> findActiveByEmail(@Param("email") String email);

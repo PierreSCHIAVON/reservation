@@ -24,11 +24,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ultra explicite (debug)
-                        .requestMatchers(HttpMethod.GET, "/api/public/ping").permitAll()
-
                         // endpoints publics
                         .requestMatchers("/api/public/**").permitAll()
+
+                        // Liste des propriétés (lecture publique)
+                        .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
 
                         // actuator health public
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
