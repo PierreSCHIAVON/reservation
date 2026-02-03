@@ -2,6 +2,8 @@ package com.example.reservation.repository;
 
 import com.example.reservation.domain.property.Property;
 import com.example.reservation.domain.property.PropertyStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -22,4 +24,12 @@ public interface PropertyRepository extends JpaRepository<Property, UUID> {
     List<Property> findByStatusAndCityIgnoreCase(PropertyStatus status, String city);
 
     boolean existsByIdAndOwnerSub(UUID id, String ownerSub);
+
+    // ===== Paginated queries =====
+
+    Page<Property> findByOwnerSub(String ownerSub, Pageable pageable);
+
+    Page<Property> findByStatus(PropertyStatus status, Pageable pageable);
+
+    Page<Property> findByStatusAndCityIgnoreCase(PropertyStatus status, String city, Pageable pageable);
 }

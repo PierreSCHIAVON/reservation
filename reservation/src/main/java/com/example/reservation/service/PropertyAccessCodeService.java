@@ -5,6 +5,9 @@ import com.example.reservation.domain.property.PropertyAccessCode;
 import com.example.reservation.repository.PropertyAccessCodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +17,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,39 @@ public class PropertyAccessCodeService {
 
     public List<PropertyAccessCode> findActiveByEmail(String email) {
         return accessCodeRepository.findActiveByEmail(email);
+    }
+
+    // ===== Paginated methods (two-query pattern) =====
+
+    public Page<PropertyAccessCode> findByProperty(UUID propertyId, Pageable pageable) {
+        Page<UUID> idsPage = accessCodeRepository.findIdsByPropertyId(propertyId, pageable);
+        return fetchWithProperty(idsPage);
+    }
+
+    public Page<PropertyAccessCode> findActiveByEmail(String email, Pageable pageable) {
+        Page<UUID> idsPage = accessCodeRepository.findActiveIdsByEmail(email, pageable);
+        return fetchWithProperty(idsPage);
+    }
+
+    /**
+     * Two-query pattern: fetch entities with JOIN FETCH maintaining the order from the ID page.
+     */
+    private Page<PropertyAccessCode> fetchWithProperty(Page<UUID> idsPage) {
+        if (idsPage.isEmpty()) {
+            return new PageImpl<>(List.of(), idsPage.getPageable(), idsPage.getTotalElements());
+        }
+
+        List<UUID> ids = idsPage.getContent();
+        List<PropertyAccessCode> codes = accessCodeRepository.findByIdsWithProperty(ids);
+
+        // Maintain original order from paginated IDs
+        Map<UUID, PropertyAccessCode> codeMap = codes.stream()
+                .collect(Collectors.toMap(PropertyAccessCode::getId, Function.identity()));
+        List<PropertyAccessCode> orderedCodes = ids.stream()
+                .map(codeMap::get)
+                .toList();
+
+        return new PageImpl<>(orderedCodes, idsPage.getPageable(), idsPage.getTotalElements());
     }
 
     @Transactional

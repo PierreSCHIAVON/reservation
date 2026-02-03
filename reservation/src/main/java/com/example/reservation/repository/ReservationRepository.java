@@ -2,6 +2,8 @@ package com.example.reservation.repository;
 
 import com.example.reservation.domain.reservation.Reservation;
 import com.example.reservation.domain.reservation.ReservationStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -73,4 +75,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("SELECT COUNT(r) > 0 FROM Reservation r WHERE r.id = :id AND r.property.ownerSub = :ownerSub")
     boolean existsByIdAndPropertyOwnerSub(@Param("id") UUID id, @Param("ownerSub") String ownerSub);
+
+    // === Paginated queries (two-query pattern for JOIN FETCH compatibility) ===
+
+    // Step 1: Get paginated IDs
+    @Query("SELECT r.id FROM Reservation r WHERE r.tenantSub = :tenantSub")
+    Page<UUID> findIdsByTenantSub(@Param("tenantSub") String tenantSub, Pageable pageable);
+
+    @Query("SELECT r.id FROM Reservation r WHERE r.property.ownerSub = :ownerSub")
+    Page<UUID> findIdsByPropertyOwnerSub(@Param("ownerSub") String ownerSub, Pageable pageable);
+
+    @Query("SELECT r.id FROM Reservation r WHERE r.property.ownerSub = :ownerSub AND r.status = :status")
+    Page<UUID> findIdsByPropertyOwnerSubAndStatus(
+            @Param("ownerSub") String ownerSub,
+            @Param("status") ReservationStatus status,
+            Pageable pageable
+    );
+
+    // Step 2: Fetch entities with JOIN FETCH by IDs
+    @Query("SELECT r FROM Reservation r JOIN FETCH r.property WHERE r.id IN :ids")
+    List<Reservation> findByIdsWithProperty(@Param("ids") List<UUID> ids);
 }
