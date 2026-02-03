@@ -1,6 +1,5 @@
 package com.example.reservation.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -11,27 +10,13 @@ import java.util.function.Function;
  *
  * @param <T> Type des éléments de la page
  */
-@Schema(description = "Réponse paginée")
 public record PageResponse<T>(
-        @Schema(description = "Contenu de la page")
         List<T> content,
-
-        @Schema(description = "Numéro de la page (0-indexé)", example = "0")
         int page,
-
-        @Schema(description = "Taille de la page", example = "20")
         int size,
-
-        @Schema(description = "Nombre total d'éléments", example = "100")
         long totalElements,
-
-        @Schema(description = "Nombre total de pages", example = "5")
         int totalPages,
-
-        @Schema(description = "Est-ce la première page ?")
         boolean first,
-
-        @Schema(description = "Est-ce la dernière page ?")
         boolean last
 ) {
     /**

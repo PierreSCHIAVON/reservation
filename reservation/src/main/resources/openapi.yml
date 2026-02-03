@@ -1,0 +1,1456 @@
+openapi: 3.0.3
+info:
+  title: Reservation Management API
+  description: |
+    API de gestion de réservations de propriétés avec authentification Keycloak JWT.
+
+    ## Authentification
+    L'API utilise OAuth2 avec tokens JWT fournis par Keycloak.
+
+    ### Obtenir un token
+    ```bash
+    curl -X POST 'http://localhost:8081/realms/reservation/protocol/openid-connect/token' \
+      -H 'Content-Type: application/x-www-form-urlencoded' \
+      -d 'grant_type=password&client_id=reservation-test&username=testuser&password=testuser'
+    ```
+
+    ### Utiliser un token
+    ```bash
+    curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/reservations/mine
+    ```
+
+    ## Pagination
+    Les endpoints qui retournent des listes supportent la pagination :
+    - `page` : Numéro de page (0-indexé)
+    - `size` : Taille de page (défaut: 20)
+    - `sort` : Tri (ex: `createdAt,desc`)
+    - `unpaged` : Si true, retourne tous les résultats sans pagination
+
+    Quand `unpaged=true`, les paramètres `page`, `size` et `sort` sont ignorés.
+  version: 1.0.0
+  contact:
+    name: Reservation API Support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:8080
+    description: Serveur de développement local
+  - url: http://localhost:8080/api
+    description: Serveur de développement (avec préfixe /api)
+
+tags:
+  - name: Public
+    description: Endpoints publics sans authentification
+  - name: Me
+    description: Informations sur l'utilisateur connecté
+  - name: Properties
+    description: Gestion des propriétés
+  - name: Reservations
+    description: Gestion des réservations
+  - name: Access Codes
+    description: Gestion des codes d'accès aux propriétés
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/public/ping:
+    get:
+      tags:
+        - Public
+      summary: Health check
+      description: Endpoint simple pour vérifier que l'API répond
+      operationId: ping
+      security: []
+      responses:
+        '200':
+          description: API disponible
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: pong
+
+  /api/me:
+    get:
+      tags:
+        - Me
+      summary: Informations utilisateur
+      description: Retourne les informations de l'utilisateur connecté extraites du JWT
+      operationId: me
+      responses:
+        '200':
+          description: Informations utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/properties:
+    get:
+      tags:
+        - Properties
+      summary: Lister les propriétés actives
+      description: Retourne la liste paginée des propriétés actives, optionnellement filtrées par ville. Utilisez unpaged=true pour obtenir tous les résultats.
+      operationId: getActiveProperties
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CityFilter'
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de propriétés actives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_PropertyListResponse'
+    post:
+      tags:
+        - Properties
+      summary: Créer une propriété
+      description: Crée une nouvelle propriété pour l'utilisateur connecté
+      operationId: createProperty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyCreateRequest'
+      responses:
+        '201':
+          description: Propriété créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/properties/mine:
+    get:
+      tags:
+        - Properties
+      summary: Mes propriétés
+      description: Retourne les propriétés paginées de l'utilisateur connecté
+      operationId: getMyProperties
+      parameters:
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de propriétés de l'utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_PropertyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/properties/{id}:
+    get:
+      tags:
+        - Properties
+      summary: Détails d'une propriété
+      description: Retourne les détails complets d'une propriété
+      operationId: getProperty
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+      responses:
+        '200':
+          description: Détails de la propriété
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Properties
+      summary: Mettre à jour une propriété
+      description: Met à jour les informations d'une propriété. Seul le propriétaire peut modifier.
+      operationId: updateProperty
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyUpdateRequest'
+      responses:
+        '200':
+          description: Propriété mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Properties
+      summary: Supprimer une propriété
+      description: Supprime définitivement une propriété
+      operationId: deleteProperty
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+      responses:
+        '204':
+          description: Propriété supprimée
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/properties/{id}/activate:
+    post:
+      tags:
+        - Properties
+      summary: Activer une propriété
+      description: Active une propriété pour la rendre disponible à la réservation
+      operationId: activateProperty
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+      responses:
+        '200':
+          description: Propriété activée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/properties/{id}/deactivate:
+    post:
+      tags:
+        - Properties
+      summary: Désactiver une propriété
+      description: Désactive une propriété pour la retirer de la liste des disponibilités
+      operationId: deactivateProperty
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+      responses:
+        '200':
+          description: Propriété désactivée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations:
+    post:
+      tags:
+        - Reservations
+      summary: Créer une réservation
+      description: Crée une nouvelle réservation pour la propriété spécifiée
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationCreateRequest'
+      responses:
+        '201':
+          description: Réservation créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/mine:
+    get:
+      tags:
+        - Reservations
+      summary: Mes réservations
+      description: Retourne les réservations paginées de l'utilisateur connecté en tant que locataire
+      operationId: getMyReservations
+      parameters:
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de réservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ReservationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/reservations/owner:
+    get:
+      tags:
+        - Reservations
+      summary: Réservations de mes propriétés
+      description: Retourne les réservations paginées pour les propriétés de l'utilisateur connecté
+      operationId: getReservationsForMyProperties
+      parameters:
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de réservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ReservationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/reservations/owner/pending:
+    get:
+      tags:
+        - Reservations
+      summary: Réservations en attente
+      description: Retourne les réservations paginées en attente de confirmation pour les propriétés de l'utilisateur
+      operationId: getPendingReservationsForMyProperties
+      parameters:
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de réservations en attente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ReservationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/reservations/{id}:
+    get:
+      tags:
+        - Reservations
+      summary: Détails d'une réservation
+      description: Retourne les détails d'une réservation. Accessible au locataire ou au propriétaire.
+      operationId: getReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: Détails de la réservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/reservations/{id}/confirm:
+    post:
+      tags:
+        - Reservations
+      summary: Confirmer une réservation
+      description: Confirme une réservation en attente. Réservé au propriétaire.
+      operationId: confirmReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: Réservation confirmée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{id}/cancel:
+    post:
+      tags:
+        - Reservations
+      summary: Annuler une réservation
+      description: Annule une réservation. Accessible au locataire ou au propriétaire.
+      operationId: cancelReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: Réservation annulée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{id}/complete:
+    post:
+      tags:
+        - Reservations
+      summary: Terminer une réservation
+      description: Marque une réservation confirmée comme terminée. Réservé au propriétaire.
+      operationId: completeReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: Réservation terminée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{id}/discount:
+    post:
+      tags:
+        - Reservations
+      summary: Appliquer une réduction
+      description: Applique un prix réduit à une réservation en attente. Réservé au propriétaire.
+      operationId: applyDiscount
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationDiscountRequest'
+      responses:
+        '200':
+          description: Réduction appliquée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{id}/free:
+    post:
+      tags:
+        - Reservations
+      summary: Offrir un séjour gratuit
+      description: Marque une réservation comme gratuite. Réservé au propriétaire.
+      operationId: applyFreeStay
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationFreeStayRequest'
+      responses:
+        '200':
+          description: Séjour gratuit appliqué
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/access-codes:
+    post:
+      tags:
+        - Access Codes
+      summary: Créer un code d'accès
+      description: Crée un nouveau code d'accès pour inviter quelqu'un à une propriété. Réservé au propriétaire.
+      operationId: createAccessCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyAccessCodeCreateRequest'
+      responses:
+        '201':
+          description: Code créé (inclut le code brut à partager)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyAccessCodeCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/access-codes/redeem:
+    post:
+      tags:
+        - Access Codes
+      summary: Utiliser un code d'accès
+      description: Utilise un code d'accès pour obtenir l'accès à une propriété
+      operationId: redeemAccessCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyAccessCodeRedeemRequest'
+      responses:
+        '200':
+          description: Code utilisé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyAccessCodeRedeemResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/access-codes/mine:
+    get:
+      tags:
+        - Access Codes
+      summary: Mes codes d'accès actifs
+      description: Retourne les codes d'accès paginés actifs destinés à l'email de l'utilisateur connecté
+      operationId: getMyActiveAccessCodes
+      parameters:
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de codes d'accès actifs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_PropertyAccessCodeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/access-codes/property/{propertyId}:
+    get:
+      tags:
+        - Access Codes
+      summary: Codes d'accès d'une propriété
+      description: Retourne les codes d'accès paginés d'une propriété. Réservé au propriétaire.
+      operationId: getAccessCodesForProperty
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          description: ID de la propriété
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Unpaged'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Page de codes d'accès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_PropertyAccessCodeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/access-codes/{id}/revoke:
+    post:
+      tags:
+        - Access Codes
+      summary: Révoquer un code d'accès
+      description: Révoque un code d'accès pour empêcher son utilisation. Réservé au créateur du code.
+      operationId: revokeAccessCode
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du code d'accès
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Code révoqué
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyAccessCodeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtenu depuis Keycloak
+
+  parameters:
+    PropertyId:
+      name: id
+      in: path
+      required: true
+      description: ID de la propriété
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+    ReservationId:
+      name: id
+      in: path
+      required: true
+      description: ID de la réservation
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+    CityFilter:
+      name: city
+      in: query
+      required: false
+      description: Filtre par ville (insensible à la casse)
+      schema:
+        type: string
+        example: Paris
+
+    Unpaged:
+      name: unpaged
+      in: query
+      required: false
+      description: |
+        Retourner tous les résultats sans pagination.
+        Quand true, les paramètres page, size et sort sont ignorés.
+      schema:
+        type: boolean
+        default: false
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Numéro de page (0-indexé). Ignoré si unpaged=true.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+        example: 0
+
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Taille de page. Ignoré si unpaged=true.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: |
+        Critère de tri au format "champ,direction".
+        Direction: asc ou desc.
+        Défaut: createdAt,asc.
+        Ignoré si unpaged=true.
+      schema:
+        type: string
+        default: createdAt
+        example: createdAt,desc
+
+  schemas:
+    # ===== User Info =====
+    UserInfo:
+      type: object
+      description: Informations utilisateur extraites du JWT
+      properties:
+        sub:
+          type: string
+          description: Subject (identifiant unique)
+          example: user-123-abc
+        username:
+          type: string
+          description: Nom d'utilisateur
+          example: testuser
+        realm_access:
+          type: object
+          description: Rôles Keycloak
+          additionalProperties: true
+        issuer:
+          type: string
+          description: Issuer du token
+          example: http://localhost:8081/realms/reservation
+
+    # ===== Enums =====
+    PropertyStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+      description: Statut d'une propriété
+
+    ReservationStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - CANCELLED
+        - COMPLETED
+      description: Statut d'une réservation
+
+    PricingType:
+      type: string
+      enum:
+        - NORMAL
+        - FREE
+        - DISCOUNT
+      description: Type de tarification appliquée
+
+    # ===== Property DTOs =====
+    PropertyCreateRequest:
+      type: object
+      required:
+        - title
+        - description
+        - city
+        - pricePerNight
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          description: Titre de la propriété
+          example: Appartement Paris 8ème
+        description:
+          type: string
+          maxLength: 2000
+          description: Description détaillée
+          example: Bel appartement lumineux avec vue sur la Tour Eiffel
+        city:
+          type: string
+          maxLength: 120
+          description: Ville
+          example: Paris
+        pricePerNight:
+          type: number
+          format: decimal
+          minimum: 0.01
+          description: Prix par nuit en euros
+          example: 150.00
+
+    PropertyUpdateRequest:
+      type: object
+      description: Requête de mise à jour d'une propriété (tous les champs sont optionnels)
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          description: Nouveau titre
+          example: Appartement Paris 8ème rénové
+        description:
+          type: string
+          maxLength: 2000
+          description: Nouvelle description
+        city:
+          type: string
+          maxLength: 120
+          description: Nouvelle ville
+          example: Lyon
+        pricePerNight:
+          type: number
+          format: decimal
+          minimum: 0.01
+          description: Nouveau prix par nuit
+          example: 175.00
+
+    PropertyResponse:
+      type: object
+      description: Détails complets d'une propriété
+      required:
+        - id
+        - ownerSub
+        - title
+        - description
+        - city
+        - pricePerNight
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique
+          example: 550e8400-e29b-41d4-a716-446655440000
+        ownerSub:
+          type: string
+          description: Identifiant du propriétaire (Keycloak subject)
+          example: user-123-abc
+        title:
+          type: string
+          description: Titre
+          example: Appartement Paris 8ème
+        description:
+          type: string
+          description: Description détaillée
+        city:
+          type: string
+          description: Ville
+          example: Paris
+        pricePerNight:
+          type: number
+          format: decimal
+          description: Prix par nuit
+          example: 150.00
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de dernière modification
+
+    PropertyListResponse:
+      type: object
+      description: Résumé d'une propriété pour les listes
+      required:
+        - id
+        - title
+        - city
+        - pricePerNight
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique
+          example: 550e8400-e29b-41d4-a716-446655440000
+        title:
+          type: string
+          description: Titre
+          example: Appartement Paris 8ème
+        city:
+          type: string
+          description: Ville
+          example: Paris
+        pricePerNight:
+          type: number
+          format: decimal
+          description: Prix par nuit
+          example: 150.00
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+
+    # ===== Reservation DTOs =====
+    ReservationCreateRequest:
+      type: object
+      required:
+        - propertyId
+        - startDate
+        - endDate
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété à réserver
+          example: 550e8400-e29b-41d4-a716-446655440000
+        startDate:
+          type: string
+          format: date
+          description: Date d'arrivée
+          example: '2024-06-15'
+        endDate:
+          type: string
+          format: date
+          description: Date de départ (doit être après startDate)
+          example: '2024-06-20'
+
+    ReservationDiscountRequest:
+      type: object
+      required:
+        - discountedUnitPrice
+      properties:
+        discountedUnitPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Prix unitaire réduit par nuit
+          example: 80.00
+        reason:
+          type: string
+          maxLength: 255
+          description: Raison de la réduction
+          example: Client fidèle
+
+    ReservationFreeStayRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+          description: Raison du séjour gratuit
+          example: Compensation suite à un incident
+
+    ReservationResponse:
+      type: object
+      description: Détails complets d'une réservation
+      required:
+        - id
+        - propertyId
+        - propertyTitle
+        - tenantSub
+        - startDate
+        - endDate
+        - nights
+        - status
+        - unitPriceApplied
+        - totalPrice
+        - pricingType
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique de la réservation
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété réservée
+        propertyTitle:
+          type: string
+          description: Titre de la propriété
+        tenantSub:
+          type: string
+          description: Identifiant du locataire (Keycloak subject)
+        startDate:
+          type: string
+          format: date
+          description: Date d'arrivée
+        endDate:
+          type: string
+          format: date
+          description: Date de départ
+        nights:
+          type: integer
+          format: int64
+          description: Nombre de nuits
+          example: 5
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        unitPriceApplied:
+          type: number
+          format: decimal
+          description: Prix unitaire appliqué par nuit
+        totalPrice:
+          type: number
+          format: decimal
+          description: Prix total du séjour
+        pricingType:
+          $ref: '#/components/schemas/PricingType'
+        pricingReason:
+          type: string
+          nullable: true
+          description: Raison de la tarification spéciale (si applicable)
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de dernière modification
+
+    ReservationListResponse:
+      type: object
+      description: Résumé d'une réservation pour les listes
+      required:
+        - id
+        - propertyId
+        - propertyTitle
+        - startDate
+        - endDate
+        - status
+        - totalPrice
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété
+        propertyTitle:
+          type: string
+          description: Titre de la propriété
+        startDate:
+          type: string
+          format: date
+          description: Date d'arrivée
+        endDate:
+          type: string
+          format: date
+          description: Date de départ
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        totalPrice:
+          type: number
+          format: decimal
+          description: Prix total
+
+    # ===== Property Access Code DTOs =====
+    PropertyAccessCodeCreateRequest:
+      type: object
+      required:
+        - propertyId
+        - email
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email de l'invité
+          example: guest@example.com
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d'expiration (optionnelle, null = jamais)
+
+    PropertyAccessCodeRedeemRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          description: Code d'accès reçu par email
+
+    PropertyAccessCodeCreateResponse:
+      type: object
+      description: Réponse à la création d'un code d'accès (inclut le code brut)
+      required:
+        - id
+        - propertyId
+        - issuedToEmail
+        - code
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID du code d'accès créé
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété
+        issuedToEmail:
+          type: string
+          description: Email de l'invité
+        code:
+          type: string
+          description: Code brut à partager avec l'invité (affiché une seule fois)
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d'expiration
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+
+    PropertyAccessCodeResponse:
+      type: object
+      description: Informations sur un code d'accès
+      required:
+        - id
+        - propertyId
+        - propertyTitle
+        - issuedToEmail
+        - createdBySub
+        - createdAt
+        - active
+        - redeemed
+        - revoked
+        - expired
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID du code
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété
+        propertyTitle:
+          type: string
+          description: Titre de la propriété
+        issuedToEmail:
+          type: string
+          description: Email de l'invité
+        createdBySub:
+          type: string
+          description: Identifiant du créateur
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d'expiration
+        active:
+          type: boolean
+          description: Le code est-il encore utilisable ?
+        redeemed:
+          type: boolean
+          description: Le code a-t-il été utilisé ?
+        revoked:
+          type: boolean
+          description: Le code a-t-il été révoqué ?
+        expired:
+          type: boolean
+          description: Le code a-t-il expiré ?
+
+    PropertyAccessCodeRedeemResponse:
+      type: object
+      description: Réponse à l'utilisation d'un code d'accès
+      required:
+        - propertyId
+        - propertyTitle
+        - message
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+          description: ID de la propriété débloquée
+        propertyTitle:
+          type: string
+          description: Titre de la propriété
+        message:
+          type: string
+          description: Message de confirmation
+
+    # ===== Pagination =====
+    PageResponse_PropertyListResponse:
+      type: object
+      description: Réponse paginée de propriétés
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - first
+        - last
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyListResponse'
+          description: Contenu de la page
+        page:
+          type: integer
+          format: int32
+          description: Numéro de la page (0-indexé)
+          example: 0
+        size:
+          type: integer
+          format: int32
+          description: Taille de la page
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          description: Nombre total d'éléments
+          example: 100
+        totalPages:
+          type: integer
+          format: int32
+          description: Nombre total de pages
+          example: 5
+        first:
+          type: boolean
+          description: Est-ce la première page ?
+        last:
+          type: boolean
+          description: Est-ce la dernière page ?
+
+    PageResponse_ReservationListResponse:
+      type: object
+      description: Réponse paginée de réservations
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - first
+        - last
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationListResponse'
+          description: Contenu de la page
+        page:
+          type: integer
+          format: int32
+          description: Numéro de la page (0-indexé)
+          example: 0
+        size:
+          type: integer
+          format: int32
+          description: Taille de la page
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          description: Nombre total d'éléments
+          example: 100
+        totalPages:
+          type: integer
+          format: int32
+          description: Nombre total de pages
+          example: 5
+        first:
+          type: boolean
+          description: Est-ce la première page ?
+        last:
+          type: boolean
+          description: Est-ce la dernière page ?
+
+    PageResponse_PropertyAccessCodeResponse:
+      type: object
+      description: Réponse paginée de codes d'accès
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - first
+        - last
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyAccessCodeResponse'
+          description: Contenu de la page
+        page:
+          type: integer
+          format: int32
+          description: Numéro de la page (0-indexé)
+          example: 0
+        size:
+          type: integer
+          format: int32
+          description: Taille de la page
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          description: Nombre total d'éléments
+          example: 100
+        totalPages:
+          type: integer
+          format: int32
+          description: Nombre total de pages
+          example: 5
+        first:
+          type: boolean
+          description: Est-ce la première page ?
+        last:
+          type: boolean
+          description: Est-ce la dernière page ?
+
+    # ===== Error Response =====
+    ProblemDetail:
+      type: object
+      description: Détails d'une erreur au format RFC 7807
+      properties:
+        type:
+          type: string
+          description: URI identifiant le type de problème
+          example: about:blank
+        title:
+          type: string
+          description: Résumé court du problème
+          example: Bad Request
+        status:
+          type: integer
+          format: int32
+          description: Code de statut HTTP
+          example: 400
+        detail:
+          type: string
+          description: Explication détaillée de l'erreur
+          example: La date de fin doit être après la date de début
+        instance:
+          type: string
+          description: URI identifiant l'occurrence spécifique du problème
+          example: /api/reservations
+
+  responses:
+    BadRequest:
+      description: Données invalides
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            detail: La date de fin doit être après la date de début
+            instance: /api/reservations
+
+    Unauthorized:
+      description: Non authentifié (token manquant ou invalide)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            detail: Token JWT invalide ou manquant
+            instance: /api/reservations/mine
+
+    Forbidden:
+      description: Accès refusé (permissions insuffisantes)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Forbidden
+            status: 403
+            detail: Vous n'êtes pas propriétaire de cette propriété
+            instance: /api/properties/550e8400-e29b-41d4-a716-446655440000
+
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: Propriété non trouvée
+            instance: /api/properties/550e8400-e29b-41d4-a716-446655440000
+
+    Conflict:
+      description: Conflit d'état ou violation de contrainte métier
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Conflict
+            status: 409
+            detail: La propriété est déjà active
+            instance: /api/properties/550e8400-e29b-41d4-a716-446655440000/activate

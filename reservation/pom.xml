@@ -105,6 +105,25 @@
 			<version>2.8.4</version>
 		</dependency>
 
+		<!-- OpenAPI Generator - Runtime dependencies for generated code -->
+		<dependency>
+			<groupId>org.openapitools</groupId>
+			<artifactId>jackson-databind-nullable</artifactId>
+			<version>0.2.6</version>
+		</dependency>
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-annotations</artifactId>
+			<version>2.2.22</version>
+		</dependency>
+
+		<!-- Swagger Parser - For loading openapi.yml at runtime -->
+		<dependency>
+			<groupId>io.swagger.parser.v3</groupId>
+			<artifactId>swagger-parser</artifactId>
+			<version>2.1.22</version>
+		</dependency>
+
 		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -177,6 +196,88 @@
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
+			</plugin>
+
+			<!-- OpenAPI Generator - Generate DTOs only -->
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.12.0</version>
+				<executions>
+					<execution>
+						<id>generate-models</id>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<phase>generate-sources</phase>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi.yml</inputSpec>
+							<generatorName>spring</generatorName>
+							<output>${project.build.directory}/generated-sources/openapi</output>
+							<apiPackage>com.example.reservation.api.generated</apiPackage>
+							<modelPackage>com.example.reservation.dto.generated</modelPackage>
+							<invokerPackage>com.example.reservation.invoker.generated</invokerPackage>
+
+							<!-- Generate models (DTOs) only -->
+							<generateApis>false</generateApis>
+							<generateModels>true</generateModels>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<generateApiTests>false</generateApiTests>
+							<generateModelTests>false</generateModelTests>
+							<generateApiDocumentation>false</generateApiDocumentation>
+							<generateModelDocumentation>false</generateModelDocumentation>
+
+							<configOptions>
+								<!-- Use Jakarta instead of javax -->
+								<useJakartaEe>true</useJakartaEe>
+
+								<!-- Enable Jakarta Validation annotations -->
+								<useBeanValidation>true</useBeanValidation>
+
+								<!-- Use Java 17+ features -->
+								<dateLibrary>java8</dateLibrary>
+								<java8>true</java8>
+
+								<!-- Don't generate extra files -->
+								<hideGenerationTimestamp>true</hideGenerationTimestamp>
+
+								<!-- Use OpenAPI Jackson for better JSON handling -->
+								<openApiNullable>false</openApiNullable>
+
+								<!-- Disable Swagger annotations in generated code -->
+								<documentationProvider>none</documentationProvider>
+
+								<!-- Use records for immutable DTOs (Java 17+) -->
+								<useSpringBoot3>true</useSpringBoot3>
+
+								<!-- Additional optimizations -->
+								<serializableModel>false</serializableModel>
+								<performBeanValidation>false</performBeanValidation>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Add generated sources to build path -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.6.0</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 
 			<plugin>

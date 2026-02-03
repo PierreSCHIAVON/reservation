@@ -211,7 +211,7 @@ class PropertyAccessCodeControllerTest {
             mockMvc.perform(post("/api/access-codes")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isForbidden()); // PreAuthorize fails before not found
+                    .andExpect(status().isNotFound());
         }
     }
 
@@ -261,7 +261,7 @@ class PropertyAccessCodeControllerTest {
         void returns409ForAlreadyRedeemedCode() throws Exception {
             PropertyAccessCodeService.PropertyAccessCodeResult result =
                     accessCodeService.create(testProperty.getId(), GUEST_EMAIL, OWNER_SUB, null);
-            accessCodeService.redeem(result.rawCode(), GUEST_SUB);
+            accessCodeService.redeem(result.rawCode(), GUEST_SUB, GUEST_EMAIL);
 
             Map<String, String> request = Map.of("code", result.rawCode());
 
@@ -375,7 +375,7 @@ class PropertyAccessCodeControllerTest {
         @DisplayName("Returns 403 for non-existent code")
         void returns403ForNonExistent() throws Exception {
             mockMvc.perform(post("/api/access-codes/{id}/revoke", UUID.randomUUID()))
-                    .andExpect(status().isForbidden()); // PreAuthorize fails before not found
+                    .andExpect(status().isNotFound());
         }
     }
 
@@ -404,7 +404,7 @@ class PropertyAccessCodeControllerTest {
         void doesNotReturnRedeemedCodes() throws Exception {
             PropertyAccessCodeService.PropertyAccessCodeResult result =
                     accessCodeService.create(testProperty.getId(), GUEST_EMAIL, OWNER_SUB, null);
-            accessCodeService.redeem(result.rawCode(), GUEST_SUB);
+            accessCodeService.redeem(result.rawCode(), GUEST_SUB, GUEST_EMAIL);
 
             mockMvc.perform(get("/api/access-codes/mine"))
                     .andExpect(status().isOk())

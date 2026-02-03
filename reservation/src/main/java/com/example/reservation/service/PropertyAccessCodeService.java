@@ -110,11 +110,18 @@ public class PropertyAccessCodeService {
     }
 
     @Transactional
-    public PropertyAccessCode redeem(String rawCode, String userSub) {
+    public PropertyAccessCode redeem(String rawCode, String userSub, String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email manquant dans le token");
+        }
         String codeLookup = sha256(rawCode);
 
         PropertyAccessCode accessCode = accessCodeRepository.findByCodeLookup(codeLookup)
                 .orElseThrow(() -> new EntityNotFoundException("Code d'accès invalide"));
+
+        if (!accessCode.isIssuedTo(email)) {
+            throw new EntityNotFoundException("Code d'accès invalide");
+        }
 
         if (!accessCode.isActive()) {
             throw new IllegalStateException("Ce code n'est plus actif");

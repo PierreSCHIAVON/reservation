@@ -304,7 +304,7 @@ class PropertyControllerTest {
             mockMvc.perform(put("/api/properties/{id}", UUID.randomUUID())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
-                    .andExpect(status().isForbidden()); // PreAuthorize fails before not found
+                    .andExpect(status().isNotFound());
         }
     }
 

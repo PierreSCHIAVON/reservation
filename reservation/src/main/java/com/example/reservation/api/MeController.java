@@ -1,5 +1,6 @@
 package com.example.reservation.api;
 
+import com.example.reservation.dto.generated.UserInfo;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,12 +14,13 @@ import java.util.Map;
 public class MeController {
 
     @GetMapping("/me")
-    public Map<String, Object> me(@AuthenticationPrincipal Jwt jwt) {
-        return Map.of(
-                "sub", jwt.getSubject(),
-                "username", jwt.getClaimAsString("preferred_username"),
-                "realm_access", jwt.getClaim("realm_access"),
-                "issuer", jwt.getIssuer() != null ? jwt.getIssuer().toString() : null
-        );
+    public UserInfo me(@AuthenticationPrincipal Jwt jwt) {
+        UserInfo info = new UserInfo();
+        info.setSub(jwt.getSubject());
+        info.setUsername(jwt.getClaimAsString("preferred_username"));
+        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+        info.setRealmAccess(realmAccess != null ? realmAccess : Map.of());
+        info.setIssuer(jwt.getIssuer() != null ? jwt.getIssuer().toString() : null);
+        return info;
     }
 }
