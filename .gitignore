@@ -60,3 +60,9 @@ keycloak/*-private.json
 # ============================
 *.tmp
 *.bak
+
+# ============================
+# Codex / Assistant
+# ============================
+.claude/
+CLAUDE.md
