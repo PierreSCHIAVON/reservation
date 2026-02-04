@@ -14,7 +14,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.reservation.security.annotation.RequiresReservationAccess;
+import com.example.reservation.security.annotation.RequiresReservationPropertyOwner;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -64,7 +65,7 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@authz.canAccessReservation(#id, authentication.principal.subject)")
+    @RequiresReservationAccess
     public ReservationResponse cancelReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.cancel(id));
     }
@@ -106,19 +107,19 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
+    @RequiresReservationPropertyOwner
     public ReservationResponse confirmReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.confirm(id));
     }
 
     @PostMapping("/{id}/complete")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
+    @RequiresReservationPropertyOwner
     public ReservationResponse completeReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.complete(id));
     }
 
     @PostMapping("/{id}/discount")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
+    @RequiresReservationPropertyOwner
     public ReservationResponse applyDiscount(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
@@ -130,7 +131,7 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/free")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
+    @RequiresReservationPropertyOwner
     public ReservationResponse applyFreeStay(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
@@ -144,7 +145,7 @@ public class ReservationController {
     // ===== Common endpoints =====
 
     @GetMapping("/{id}")
-    @PreAuthorize("@authz.canAccessReservation(#id, authentication.principal.subject)")
+    @RequiresReservationAccess
     public ReservationResponse getReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.findById(id));
     }

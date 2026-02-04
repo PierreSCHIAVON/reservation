@@ -15,7 +15,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.reservation.security.annotation.RequiresPropertyOwner;
+import com.example.reservation.security.annotation.RequiresAccessCodeCreator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +32,7 @@ public class PropertyAccessCodeController {
     private final PropertyAccessCodeService accessCodeService;
 
     @GetMapping("/property/{propertyId}")
-    @PreAuthorize("@authz.isPropertyOwner(#propertyId, authentication.principal.subject)")
+    @RequiresPropertyOwner("propertyId")
     public PageResponsePropertyAccessCodeResponse getAccessCodesForProperty(
             @PathVariable UUID propertyId,
             @RequestParam(defaultValue = "false") boolean unpaged,
@@ -49,7 +50,7 @@ public class PropertyAccessCodeController {
     }
 
     @PostMapping
-    @PreAuthorize("@authz.isPropertyOwner(#request.propertyId(), authentication.principal.subject)")
+    @RequiresPropertyOwner
     public ResponseEntity<PropertyAccessCodeCreateResponse> createAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody PropertyAccessCodeCreateRequest request
@@ -80,7 +81,7 @@ public class PropertyAccessCodeController {
     }
 
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("@authz.isAccessCodeCreator(#id, authentication.principal.subject)")
+    @RequiresAccessCodeCreator
     public PropertyAccessCodeResponse revokeAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id

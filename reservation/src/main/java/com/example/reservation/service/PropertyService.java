@@ -2,9 +2,10 @@ package com.example.reservation.service;
 
 import com.example.reservation.domain.property.Property;
 import com.example.reservation.domain.property.PropertyStatus;
+import com.example.reservation.exception.InvalidStateException;
+import com.example.reservation.exception.ResourceNotFoundException;
 import com.example.reservation.repository.PropertyRepository;
 import com.example.reservation.repository.ReservationRepository;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +27,7 @@ public class PropertyService {
 
     public Property findById(UUID id) {
         return propertyRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Property not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Property", id));
     }
 
     public List<Property> findByOwner(String ownerSub) {
@@ -94,7 +95,7 @@ public class PropertyService {
         Property property = findById(id);
 
         if (property.getStatus() == PropertyStatus.ACTIVE) {
-            throw new IllegalStateException("La propriété est déjà active");
+            throw new InvalidStateException("La propriété est déjà active");
         }
 
         property.setStatus(PropertyStatus.ACTIVE);
@@ -106,7 +107,7 @@ public class PropertyService {
         Property property = findById(id);
 
         if (property.getStatus() == PropertyStatus.INACTIVE) {
-            throw new IllegalStateException("La propriété est déjà inactive");
+            throw new InvalidStateException("La propriété est déjà inactive");
         }
 
         property.setStatus(PropertyStatus.INACTIVE);
