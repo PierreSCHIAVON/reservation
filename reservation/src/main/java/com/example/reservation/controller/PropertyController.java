@@ -1,10 +1,17 @@
 package com.example.reservation.controller;
 
 import com.example.reservation.domain.property.Property;
-import com.example.reservation.dto.PropertyDto;
+import com.example.reservation.dto.generated.PageResponsePropertyListResponse;
+import com.example.reservation.dto.generated.PropertyCreateRequest;
+import com.example.reservation.dto.generated.PropertyResponse;
+import com.example.reservation.dto.generated.PropertyUpdateRequest;
+import com.example.reservation.mapper.DtoMapper;
 import com.example.reservation.service.PropertyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,74 +30,91 @@ public class PropertyController {
     private final PropertyService propertyService;
 
     @GetMapping
-    public List<PropertyDto.ListResponse> getActiveProperties(
-            @RequestParam(required = false) String city
+    public PageResponsePropertyListResponse getActiveProperties(
+            @RequestParam(required = false) String city,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
-        List<Property> properties = city != null
-                ? propertyService.findActivePropertiesByCity(city)
-                : propertyService.findActiveProperties();
+        if (unpaged) {
+            List<Property> properties = city != null
+                    ? propertyService.findActivePropertiesByCity(city)
+                    : propertyService.findActiveProperties();
+            return DtoMapper.toPropertyListPage(properties);
+        }
 
-        return properties.stream()
-                .map(PropertyDto.ListResponse::from)
-                .toList();
+        Page<Property> properties = city != null
+                ? propertyService.findActivePropertiesByCity(city, pageable)
+                : propertyService.findActiveProperties(pageable);
+
+        return DtoMapper.toPropertyListPage(properties);
     }
 
     @GetMapping("/mine")
-    public List<PropertyDto.ListResponse> getMyProperties(@AuthenticationPrincipal Jwt jwt) {
-        return propertyService.findByOwner(jwt.getSubject()).stream()
-                .map(PropertyDto.ListResponse::from)
-                .toList();
+    public PageResponsePropertyListResponse getMyProperties(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+    ) {
+        if (unpaged) {
+            return DtoMapper.toPropertyListPage(
+                    propertyService.findByOwner(jwt.getSubject())
+            );
+        }
+
+        return DtoMapper.toPropertyListPage(
+                propertyService.findByOwner(jwt.getSubject(), pageable)
+        );
     }
 
     @GetMapping("/{id}")
-    public PropertyDto.Response getProperty(@PathVariable UUID id) {
-        return PropertyDto.Response.from(propertyService.findById(id));
+    public PropertyResponse getProperty(@PathVariable UUID id) {
+        return DtoMapper.toPropertyResponse(propertyService.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<PropertyDto.Response> createProperty(
+    public ResponseEntity<PropertyResponse> createProperty(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody PropertyDto.CreateRequest request
+            @Valid @RequestBody PropertyCreateRequest request
     ) {
         Property property = propertyService.create(
                 jwt.getSubject(),
-                request.title(),
-                request.description(),
-                request.city(),
-                request.pricePerNight()
+                request.getTitle(),
+                request.getDescription(),
+                request.getCity(),
+                request.getPricePerNight()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(PropertyDto.Response.from(property));
+                .body(DtoMapper.toPropertyResponse(property));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
-    public PropertyDto.Response updateProperty(
+    public PropertyResponse updateProperty(
             @PathVariable UUID id,
-            @Valid @RequestBody PropertyDto.UpdateRequest request
+            @Valid @RequestBody PropertyUpdateRequest request
     ) {
         Property property = propertyService.update(
                 id,
-                request.title(),
-                request.description(),
-                request.city(),
-                request.pricePerNight()
+                request.getTitle(),
+                request.getDescription(),
+                request.getCity(),
+                request.getPricePerNight()
         );
 
-        return PropertyDto.Response.from(property);
+        return DtoMapper.toPropertyResponse(property);
     }
 
     @PostMapping("/{id}/activate")
     @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
-    public PropertyDto.Response activateProperty(@PathVariable UUID id) {
-        return PropertyDto.Response.from(propertyService.activate(id));
+    public PropertyResponse activateProperty(@PathVariable UUID id) {
+        return DtoMapper.toPropertyResponse(propertyService.activate(id));
     }
 
     @PostMapping("/{id}/deactivate")
     @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
-    public PropertyDto.Response deactivateProperty(@PathVariable UUID id) {
-        return PropertyDto.Response.from(propertyService.deactivate(id));
+    public PropertyResponse deactivateProperty(@PathVariable UUID id) {
+        return DtoMapper.toPropertyResponse(propertyService.deactivate(id));
     }
 
     @DeleteMapping("/{id}")

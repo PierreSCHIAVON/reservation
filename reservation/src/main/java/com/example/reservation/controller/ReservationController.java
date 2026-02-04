@@ -1,10 +1,17 @@
 package com.example.reservation.controller;
 
 import com.example.reservation.domain.reservation.Reservation;
-import com.example.reservation.dto.ReservationDto;
+import com.example.reservation.dto.generated.PageResponseReservationListResponse;
+import com.example.reservation.dto.generated.ReservationCreateRequest;
+import com.example.reservation.dto.generated.ReservationDiscountRequest;
+import com.example.reservation.dto.generated.ReservationFreeStayRequest;
+import com.example.reservation.dto.generated.ReservationResponse;
+import com.example.reservation.mapper.DtoMapper;
 import com.example.reservation.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,7 +19,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,87 +31,113 @@ public class ReservationController {
     // ===== Tenant endpoints =====
 
     @GetMapping("/mine")
-    public List<ReservationDto.ListResponse> getMyReservations(@AuthenticationPrincipal Jwt jwt) {
-        return reservationService.findByTenant(jwt.getSubject()).stream()
-                .map(ReservationDto.ListResponse::from)
-                .toList();
+    public PageResponseReservationListResponse getMyReservations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+    ) {
+        if (unpaged) {
+            return DtoMapper.toReservationListPage(
+                    reservationService.findByTenant(jwt.getSubject())
+            );
+        }
+
+        return DtoMapper.toReservationListPage(
+                reservationService.findByTenant(jwt.getSubject(), pageable)
+        );
     }
 
     @PostMapping
-    public ResponseEntity<ReservationDto.Response> createReservation(
+    public ResponseEntity<ReservationResponse> createReservation(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ReservationDto.CreateRequest request
+            @Valid @RequestBody ReservationCreateRequest request
     ) {
         Reservation reservation = reservationService.create(
-                request.propertyId(),
+                request.getPropertyId(),
                 jwt.getSubject(),
-                request.startDate(),
-                request.endDate()
+                request.getStartDate(),
+                request.getEndDate()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ReservationDto.Response.from(reservation));
+                .body(DtoMapper.toReservationResponse(reservation));
     }
 
     @PostMapping("/{id}/cancel")
     @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
-    public ReservationDto.Response cancelReservation(@PathVariable UUID id) {
-        return ReservationDto.Response.from(reservationService.cancel(id));
+    public ReservationResponse cancelReservation(@PathVariable UUID id) {
+        return DtoMapper.toReservationResponse(reservationService.cancel(id));
     }
 
     // ===== Owner endpoints =====
 
     @GetMapping("/owner")
-    public List<ReservationDto.ListResponse> getReservationsForMyProperties(
-            @AuthenticationPrincipal Jwt jwt
+    public PageResponseReservationListResponse getReservationsForMyProperties(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
-        return reservationService.findByPropertyOwner(jwt.getSubject()).stream()
-                .map(ReservationDto.ListResponse::from)
-                .toList();
+        if (unpaged) {
+            return DtoMapper.toReservationListPage(
+                    reservationService.findByPropertyOwner(jwt.getSubject())
+            );
+        }
+
+        return DtoMapper.toReservationListPage(
+                reservationService.findByPropertyOwner(jwt.getSubject(), pageable)
+        );
     }
 
     @GetMapping("/owner/pending")
-    public List<ReservationDto.ListResponse> getPendingReservationsForMyProperties(
-            @AuthenticationPrincipal Jwt jwt
+    public PageResponseReservationListResponse getPendingReservationsForMyProperties(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
-        return reservationService.findPendingByPropertyOwner(jwt.getSubject()).stream()
-                .map(ReservationDto.ListResponse::from)
-                .toList();
+        if (unpaged) {
+            return DtoMapper.toReservationListPage(
+                    reservationService.findPendingByPropertyOwner(jwt.getSubject())
+            );
+        }
+
+        return DtoMapper.toReservationListPage(
+                reservationService.findPendingByPropertyOwner(jwt.getSubject(), pageable)
+        );
     }
 
     @PostMapping("/{id}/confirm")
     @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
-    public ReservationDto.Response confirmReservation(@PathVariable UUID id) {
-        return ReservationDto.Response.from(reservationService.confirm(id));
+    public ReservationResponse confirmReservation(@PathVariable UUID id) {
+        return DtoMapper.toReservationResponse(reservationService.confirm(id));
     }
 
     @PostMapping("/{id}/complete")
     @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
-    public ReservationDto.Response completeReservation(@PathVariable UUID id) {
-        return ReservationDto.Response.from(reservationService.complete(id));
+    public ReservationResponse completeReservation(@PathVariable UUID id) {
+        return DtoMapper.toReservationResponse(reservationService.complete(id));
     }
 
     @PostMapping("/{id}/discount")
     @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
-    public ReservationDto.Response applyDiscount(
+    public ReservationResponse applyDiscount(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
-            @Valid @RequestBody ReservationDto.DiscountRequest request
+            @Valid @RequestBody ReservationDiscountRequest request
     ) {
-        return ReservationDto.Response.from(
-                reservationService.applyDiscount(id, request.discountedUnitPrice(), request.reason(), jwt.getSubject())
+        return DtoMapper.toReservationResponse(
+                reservationService.applyDiscount(id, request.getDiscountedUnitPrice(), request.getReason(), jwt.getSubject())
         );
     }
 
     @PostMapping("/{id}/free")
     @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
-    public ReservationDto.Response applyFreeStay(
+    public ReservationResponse applyFreeStay(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
-            @Valid @RequestBody ReservationDto.FreeStayRequest request
+            @Valid @RequestBody ReservationFreeStayRequest request
     ) {
-        return ReservationDto.Response.from(
-                reservationService.applyFreeStay(id, request.reason(), jwt.getSubject())
+        return DtoMapper.toReservationResponse(
+                reservationService.applyFreeStay(id, request.getReason(), jwt.getSubject())
         );
     }
 
@@ -113,7 +145,7 @@ public class ReservationController {
 
     @GetMapping("/{id}")
     @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
-    public ReservationDto.Response getReservation(@PathVariable UUID id) {
-        return ReservationDto.Response.from(reservationService.findById(id));
+    public ReservationResponse getReservation(@PathVariable UUID id) {
+        return DtoMapper.toReservationResponse(reservationService.findById(id));
     }
 }

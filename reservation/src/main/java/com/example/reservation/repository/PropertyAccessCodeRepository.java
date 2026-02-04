@@ -1,6 +1,8 @@
 package com.example.reservation.repository;
 
 import com.example.reservation.domain.property.PropertyAccessCode;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,4 +41,19 @@ public interface PropertyAccessCodeRepository extends JpaRepository<PropertyAcce
 
     @Query("SELECT COUNT(pac) > 0 FROM PropertyAccessCode pac WHERE pac.id = :id AND pac.createdBySub = :createdBySub")
     boolean existsByIdAndCreatedBySub(@Param("id") UUID id, @Param("createdBySub") String createdBySub);
+
+    // === Paginated queries (two-query pattern for JOIN FETCH compatibility) ===
+
+    // Step 1: Get paginated IDs
+    @Query("SELECT pac.id FROM PropertyAccessCode pac WHERE pac.property.id = :propertyId")
+    Page<UUID> findIdsByPropertyId(@Param("propertyId") UUID propertyId, Pageable pageable);
+
+    @Query("SELECT pac.id FROM PropertyAccessCode pac WHERE LOWER(pac.issuedToEmail) = LOWER(:email) " +
+           "AND pac.revokedAt IS NULL AND pac.redeemedAt IS NULL " +
+           "AND (pac.expiresAt IS NULL OR pac.expiresAt > CURRENT_TIMESTAMP)")
+    Page<UUID> findActiveIdsByEmail(@Param("email") String email, Pageable pageable);
+
+    // Step 2: Fetch entities with JOIN FETCH by IDs
+    @Query("SELECT pac FROM PropertyAccessCode pac JOIN FETCH pac.property WHERE pac.id IN :ids")
+    List<PropertyAccessCode> findByIdsWithProperty(@Param("ids") List<UUID> ids);
 }

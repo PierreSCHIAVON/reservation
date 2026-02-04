@@ -6,6 +6,8 @@ import com.example.reservation.repository.PropertyRepository;
 import com.example.reservation.repository.ReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,20 @@ public class PropertyService {
 
     public List<Property> findActivePropertiesByCity(String city) {
         return propertyRepository.findByStatusAndCityIgnoreCase(PropertyStatus.ACTIVE, city);
+    }
+
+    // ===== Paginated methods =====
+
+    public Page<Property> findByOwner(String ownerSub, Pageable pageable) {
+        return propertyRepository.findByOwnerSub(ownerSub, pageable);
+    }
+
+    public Page<Property> findActiveProperties(Pageable pageable) {
+        return propertyRepository.findByStatus(PropertyStatus.ACTIVE, pageable);
+    }
+
+    public Page<Property> findActivePropertiesByCity(String city, Pageable pageable) {
+        return propertyRepository.findByStatusAndCityIgnoreCase(PropertyStatus.ACTIVE, city, pageable);
     }
 
     @Transactional

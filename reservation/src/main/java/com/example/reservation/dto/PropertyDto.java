@@ -14,15 +14,21 @@ public class PropertyDto {
 
     public record CreateRequest(
             @NotBlank @Size(max = 120) String title,
+
             @NotBlank @Size(max = 2000) String description,
+
             @NotBlank @Size(max = 120) String city,
+
             @NotNull @DecimalMin(value = "0.0", inclusive = false) BigDecimal pricePerNight
     ) {}
 
     public record UpdateRequest(
             @Size(max = 120) String title,
+
             @Size(max = 2000) String description,
+
             @Size(max = 120) String city,
+
             @DecimalMin(value = "0.0", inclusive = false) BigDecimal pricePerNight
     ) {}
 
@@ -30,13 +36,21 @@ public class PropertyDto {
 
     public record Response(
             UUID id,
+
             String ownerSub,
+
             String title,
+
             String description,
+
             String city,
+
             BigDecimal pricePerNight,
+
             PropertyStatus status,
+
             Instant createdAt,
+
             Instant updatedAt
     ) {
         public static Response from(Property property) {
@@ -56,9 +70,13 @@ public class PropertyDto {
 
     public record ListResponse(
             UUID id,
+
             String title,
+
             String city,
+
             BigDecimal pricePerNight,
+
             PropertyStatus status
     ) {
         public static ListResponse from(Property property) {

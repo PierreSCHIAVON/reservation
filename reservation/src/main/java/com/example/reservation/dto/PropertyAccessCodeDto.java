@@ -12,8 +12,10 @@ public class PropertyAccessCodeDto {
 
     public record CreateRequest(
             @NotNull UUID propertyId,
+
             @NotBlank @Email @Size(max = 255) String email,
-            Instant expiresAt  // null = jamais
+
+            Instant expiresAt
     ) {}
 
     public record RedeemRequest(
@@ -24,24 +26,39 @@ public class PropertyAccessCodeDto {
 
     public record CreateResponse(
             UUID id,
+
             UUID propertyId,
+
             String issuedToEmail,
-            String code,  // code brut, à envoyer à l'invité
+
+            String code,
+
             Instant expiresAt,
+
             Instant createdAt
     ) {}
 
     public record Response(
             UUID id,
+
             UUID propertyId,
+
             String propertyTitle,
+
             String issuedToEmail,
+
             String createdBySub,
+
             Instant createdAt,
+
             Instant expiresAt,
+
             boolean active,
+
             boolean redeemed,
+
             boolean revoked,
+
             boolean expired
     ) {
         public static Response from(PropertyAccessCode code) {
@@ -63,7 +80,9 @@ public class PropertyAccessCodeDto {
 
     public record RedeemResponse(
             UUID propertyId,
+
             String propertyTitle,
+
             String message
     ) {}
 }

@@ -1,11 +1,18 @@
 package com.example.reservation.controller;
 
 import com.example.reservation.domain.property.PropertyAccessCode;
-import com.example.reservation.dto.PropertyAccessCodeDto;
+import com.example.reservation.dto.generated.PageResponsePropertyAccessCodeResponse;
+import com.example.reservation.dto.generated.PropertyAccessCodeCreateRequest;
+import com.example.reservation.dto.generated.PropertyAccessCodeCreateResponse;
+import com.example.reservation.dto.generated.PropertyAccessCodeRedeemRequest;
+import com.example.reservation.dto.generated.PropertyAccessCodeRedeemResponse;
+import com.example.reservation.dto.generated.PropertyAccessCodeResponse;
+import com.example.reservation.mapper.DtoMapper;
 import com.example.reservation.service.PropertyAccessCodeService;
-import com.example.reservation.service.PropertyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,76 +29,81 @@ import java.util.UUID;
 public class PropertyAccessCodeController {
 
     private final PropertyAccessCodeService accessCodeService;
-    private final PropertyService propertyService;
 
     @GetMapping("/property/{propertyId}")
     @PreAuthorize("@authz.isPropertyOwner(#propertyId, authentication.name)")
-    public List<PropertyAccessCodeDto.Response> getAccessCodesForProperty(@PathVariable UUID propertyId) {
-        return accessCodeService.findByProperty(propertyId).stream()
-                .map(PropertyAccessCodeDto.Response::from)
-                .toList();
+    public PageResponsePropertyAccessCodeResponse getAccessCodesForProperty(
+            @PathVariable UUID propertyId,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+    ) {
+        if (unpaged) {
+            return DtoMapper.toAccessCodePage(
+                    accessCodeService.findByProperty(propertyId)
+            );
+        }
+
+        return DtoMapper.toAccessCodePage(
+                accessCodeService.findByProperty(propertyId, pageable)
+        );
     }
 
     @PostMapping
     @PreAuthorize("@authz.isPropertyOwner(#request.propertyId(), authentication.name)")
-    public ResponseEntity<PropertyAccessCodeDto.CreateResponse> createAccessCode(
+    public ResponseEntity<PropertyAccessCodeCreateResponse> createAccessCode(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody PropertyAccessCodeDto.CreateRequest request
+            @Valid @RequestBody PropertyAccessCodeCreateRequest request
     ) {
         PropertyAccessCodeService.PropertyAccessCodeResult result = accessCodeService.create(
-                request.propertyId(),
-                request.email(),
+                request.getPropertyId(),
+                request.getEmail(),
                 jwt.getSubject(),
-                request.expiresAt()
+                request.getExpiresAt() != null ? request.getExpiresAt().toInstant() : null
         );
 
         PropertyAccessCode code = result.accessCode();
-        PropertyAccessCodeDto.CreateResponse response = new PropertyAccessCodeDto.CreateResponse(
-                code.getId(),
-                code.getProperty().getId(),
-                code.getIssuedToEmail(),
-                result.rawCode(),  // code brut à envoyer à l'invité
-                code.getExpiresAt(),
-                code.getCreatedAt()
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(DtoMapper.toPropertyAccessCodeCreateResponse(code, result.rawCode()));
     }
 
     @PostMapping("/redeem")
-    public PropertyAccessCodeDto.RedeemResponse redeemAccessCode(
+    public PropertyAccessCodeRedeemResponse redeemAccessCode(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody PropertyAccessCodeDto.RedeemRequest request
+            @Valid @RequestBody PropertyAccessCodeRedeemRequest request
     ) {
-        PropertyAccessCode code = accessCodeService.redeem(request.code(), jwt.getSubject());
-
-        return new PropertyAccessCodeDto.RedeemResponse(
-                code.getProperty().getId(),
-                code.getProperty().getTitle(),
-                "Code utilisé avec succès. Vous avez maintenant accès à cette propriété."
-        );
+        String email = jwt.getClaimAsString("email");
+        PropertyAccessCode code = accessCodeService.redeem(request.getCode(), jwt.getSubject(), email);
+        return DtoMapper.toPropertyAccessCodeRedeemResponse(code);
     }
 
     @PostMapping("/{id}/revoke")
     @PreAuthorize("@authz.isAccessCodeCreator(#id, authentication.name)")
-    public PropertyAccessCodeDto.Response revokeAccessCode(
+    public PropertyAccessCodeResponse revokeAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id
     ) {
-        return PropertyAccessCodeDto.Response.from(accessCodeService.revoke(id, jwt.getSubject()));
+        return DtoMapper.toPropertyAccessCodeResponse(accessCodeService.revoke(id, jwt.getSubject()));
     }
 
     @GetMapping("/mine")
-    public List<PropertyAccessCodeDto.Response> getMyActiveAccessCodes(
-            @AuthenticationPrincipal Jwt jwt
+    public PageResponsePropertyAccessCodeResponse getMyActiveAccessCodes(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
         String email = jwt.getClaimAsString("email");
         if (email == null) {
-            return List.of();
+            return DtoMapper.toAccessCodePage(List.of());
         }
 
-        return accessCodeService.findActiveByEmail(email).stream()
-                .map(PropertyAccessCodeDto.Response::from)
-                .toList();
+        if (unpaged) {
+            return DtoMapper.toAccessCodePage(
+                    accessCodeService.findActiveByEmail(email)
+            );
+        }
+
+        return DtoMapper.toAccessCodePage(
+                accessCodeService.findActiveByEmail(email, pageable)
+        );
     }
 }

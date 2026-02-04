@@ -36,6 +36,10 @@ public class SecurityConfig {
                         // actuator health public
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 
+                        // Swagger UI et OpenAPI docs
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
+
                         // tout le reste nécessite un token
                         .anyRequest().authenticated()
                 )

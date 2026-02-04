@@ -7,13 +7,19 @@ import com.example.reservation.domain.reservation.ReservationStatus;
 import com.example.reservation.repository.ReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +48,44 @@ public class ReservationService {
 
     public List<Reservation> findPendingByPropertyOwner(String ownerSub) {
         return reservationRepository.findByPropertyOwnerSubAndStatus(ownerSub, ReservationStatus.PENDING);
+    }
+
+    // ===== Paginated methods (two-query pattern) =====
+
+    public Page<Reservation> findByTenant(String tenantSub, Pageable pageable) {
+        Page<UUID> idsPage = reservationRepository.findIdsByTenantSub(tenantSub, pageable);
+        return fetchWithProperty(idsPage);
+    }
+
+    public Page<Reservation> findByPropertyOwner(String ownerSub, Pageable pageable) {
+        Page<UUID> idsPage = reservationRepository.findIdsByPropertyOwnerSub(ownerSub, pageable);
+        return fetchWithProperty(idsPage);
+    }
+
+    public Page<Reservation> findPendingByPropertyOwner(String ownerSub, Pageable pageable) {
+        Page<UUID> idsPage = reservationRepository.findIdsByPropertyOwnerSubAndStatus(ownerSub, ReservationStatus.PENDING, pageable);
+        return fetchWithProperty(idsPage);
+    }
+
+    /**
+     * Two-query pattern: fetch entities with JOIN FETCH maintaining the order from the ID page.
+     */
+    private Page<Reservation> fetchWithProperty(Page<UUID> idsPage) {
+        if (idsPage.isEmpty()) {
+            return new PageImpl<>(List.of(), idsPage.getPageable(), idsPage.getTotalElements());
+        }
+
+        List<UUID> ids = idsPage.getContent();
+        List<Reservation> reservations = reservationRepository.findByIdsWithProperty(ids);
+
+        // Maintain original order from paginated IDs
+        Map<UUID, Reservation> reservationMap = reservations.stream()
+                .collect(Collectors.toMap(Reservation::getId, Function.identity()));
+        List<Reservation> orderedReservations = ids.stream()
+                .map(reservationMap::get)
+                .toList();
+
+        return new PageImpl<>(orderedReservations, idsPage.getPageable(), idsPage.getTotalElements());
     }
 
     @Transactional
