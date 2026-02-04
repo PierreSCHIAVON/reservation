@@ -31,7 +31,7 @@ public class PropertyAccessCodeController {
     private final PropertyAccessCodeService accessCodeService;
 
     @GetMapping("/property/{propertyId}")
-    @PreAuthorize("@authz.isPropertyOwner(#propertyId, authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#propertyId, authentication.principal.subject)")
     public PageResponsePropertyAccessCodeResponse getAccessCodesForProperty(
             @PathVariable UUID propertyId,
             @RequestParam(defaultValue = "false") boolean unpaged,
@@ -49,7 +49,7 @@ public class PropertyAccessCodeController {
     }
 
     @PostMapping
-    @PreAuthorize("@authz.isPropertyOwner(#request.propertyId(), authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#request.propertyId(), authentication.principal.subject)")
     public ResponseEntity<PropertyAccessCodeCreateResponse> createAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody PropertyAccessCodeCreateRequest request
@@ -72,12 +72,15 @@ public class PropertyAccessCodeController {
             @Valid @RequestBody PropertyAccessCodeRedeemRequest request
     ) {
         String email = jwt.getClaimAsString("email");
+        if (email == null || email.isBlank()) {
+            throw new IllegalStateException("Le claim 'email' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
+        }
         PropertyAccessCode code = accessCodeService.redeem(request.getCode(), jwt.getSubject(), email);
         return DtoMapper.toPropertyAccessCodeRedeemResponse(code);
     }
 
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("@authz.isAccessCodeCreator(#id, authentication.name)")
+    @PreAuthorize("@authz.isAccessCodeCreator(#id, authentication.principal.subject)")
     public PropertyAccessCodeResponse revokeAccessCode(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id
@@ -92,8 +95,8 @@ public class PropertyAccessCodeController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
         String email = jwt.getClaimAsString("email");
-        if (email == null) {
-            return DtoMapper.toAccessCodePage(List.of());
+        if (email == null || email.isBlank()) {
+            throw new IllegalStateException("Le claim 'email' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
         }
 
         if (unpaged) {

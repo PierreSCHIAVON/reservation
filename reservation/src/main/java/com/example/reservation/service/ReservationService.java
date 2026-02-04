@@ -167,6 +167,14 @@ public class ReservationService {
             throw new IllegalStateException("Le prix ne peut être modifié que sur une réservation PENDING");
         }
 
+        // Valider que le prix réduit ne dépasse pas le prix de la propriété
+        BigDecimal originalPrice = reservation.getProperty().getPricePerNight();
+        if (discountedUnitPrice.compareTo(originalPrice) > 0) {
+            throw new IllegalArgumentException(
+                "Le prix réduit (" + discountedUnitPrice + ") ne peut pas être supérieur au prix original (" + originalPrice + ")"
+            );
+        }
+
         BigDecimal totalPrice = discountedUnitPrice.multiply(BigDecimal.valueOf(reservation.getNights()));
 
         reservation.setUnitPriceApplied(discountedUnitPrice);

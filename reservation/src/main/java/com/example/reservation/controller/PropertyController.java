@@ -89,7 +89,7 @@ public class PropertyController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.principal.subject)")
     public PropertyResponse updateProperty(
             @PathVariable UUID id,
             @Valid @RequestBody PropertyUpdateRequest request
@@ -106,19 +106,19 @@ public class PropertyController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.principal.subject)")
     public PropertyResponse activateProperty(@PathVariable UUID id) {
         return DtoMapper.toPropertyResponse(propertyService.activate(id));
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.principal.subject)")
     public PropertyResponse deactivateProperty(@PathVariable UUID id) {
         return DtoMapper.toPropertyResponse(propertyService.deactivate(id));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isPropertyOwner(#id, authentication.principal.subject)")
     public ResponseEntity<Void> deleteProperty(@PathVariable UUID id) {
         propertyService.delete(id);
         return ResponseEntity.noContent().build();

@@ -64,7 +64,7 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
+    @PreAuthorize("@authz.canAccessReservation(#id, authentication.principal.subject)")
     public ReservationResponse cancelReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.cancel(id));
     }
@@ -106,19 +106,19 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
     public ReservationResponse confirmReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.confirm(id));
     }
 
     @PostMapping("/{id}/complete")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
     public ReservationResponse completeReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.complete(id));
     }
 
     @PostMapping("/{id}/discount")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
     public ReservationResponse applyDiscount(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
@@ -130,7 +130,7 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/free")
-    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.name)")
+    @PreAuthorize("@authz.isReservationPropertyOwner(#id, authentication.principal.subject)")
     public ReservationResponse applyFreeStay(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
@@ -144,7 +144,7 @@ public class ReservationController {
     // ===== Common endpoints =====
 
     @GetMapping("/{id}")
-    @PreAuthorize("@authz.canAccessReservation(#id, authentication.name)")
+    @PreAuthorize("@authz.canAccessReservation(#id, authentication.principal.subject)")
     public ReservationResponse getReservation(@PathVariable UUID id) {
         return DtoMapper.toReservationResponse(reservationService.findById(id));
     }
