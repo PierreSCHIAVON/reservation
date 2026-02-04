@@ -58,7 +58,7 @@ public class PropertyAccessCodeController {
                 request.getPropertyId(),
                 request.getEmail(),
                 jwt.getSubject(),
-                request.getExpiresAt()
+                request.getExpiresAt() != null ? request.getExpiresAt().toInstant() : null
         );
 
         PropertyAccessCode code = result.accessCode();
