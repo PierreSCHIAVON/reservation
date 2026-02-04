@@ -1,5 +1,6 @@
 package com.example.reservation.controller;
 
+import com.example.reservation.config.JwtClaimNames;
 import com.example.reservation.domain.property.PropertyAccessCode;
 import com.example.reservation.dto.generated.PageResponsePropertyAccessCodeResponse;
 import com.example.reservation.dto.generated.PropertyAccessCodeCreateRequest;
@@ -30,6 +31,7 @@ import java.util.UUID;
 public class PropertyAccessCodeController {
 
     private final PropertyAccessCodeService accessCodeService;
+    private final JwtClaimNames jwtClaimNames;
 
     @GetMapping("/property/{propertyId}")
     @RequiresPropertyOwner("propertyId")
@@ -72,9 +74,9 @@ public class PropertyAccessCodeController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody PropertyAccessCodeRedeemRequest request
     ) {
-        String email = jwt.getClaimAsString("email");
+        String email = jwt.getClaimAsString(jwtClaimNames.getEmail());
         if (email == null || email.isBlank()) {
-            throw new IllegalStateException("Le claim 'email' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
+            throw new IllegalStateException("Le claim '" + jwtClaimNames.getEmail() + "' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
         }
         PropertyAccessCode code = accessCodeService.redeem(request.getCode(), jwt.getSubject(), email);
         return DtoMapper.toPropertyAccessCodeRedeemResponse(code);
@@ -95,9 +97,9 @@ public class PropertyAccessCodeController {
             @RequestParam(defaultValue = "false") boolean unpaged,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
-        String email = jwt.getClaimAsString("email");
+        String email = jwt.getClaimAsString(jwtClaimNames.getEmail());
         if (email == null || email.isBlank()) {
-            throw new IllegalStateException("Le claim 'email' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
+            throw new IllegalStateException("Le claim '" + jwtClaimNames.getEmail() + "' est manquant dans le JWT. Veuillez vérifier la configuration de Keycloak.");
         }
 
         if (unpaged) {

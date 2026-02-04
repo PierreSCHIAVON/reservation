@@ -7,6 +7,8 @@ import com.example.reservation.domain.reservation.ReservationStatus;
 import com.example.reservation.repository.ReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final PropertyService propertyService;
 
+    @Cacheable(value = "reservations", key = "#id")
     public Reservation findById(UUID id) {
         return reservationRepository.findByIdWithProperty(id)
                 .orElseThrow(() -> new EntityNotFoundException("Reservation not found: " + id));
@@ -89,6 +92,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", allEntries = true)
     public Reservation create(UUID propertyId, String tenantSub, LocalDate startDate, LocalDate endDate) {
         Property property = propertyService.findById(propertyId);
 
@@ -121,6 +125,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", key = "#id")
     public Reservation confirm(UUID id) {
         Reservation reservation = findById(id);
 
@@ -133,6 +138,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", key = "#id")
     public Reservation cancel(UUID id) {
         Reservation reservation = findById(id);
 
@@ -148,6 +154,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", key = "#id")
     public Reservation complete(UUID id) {
         Reservation reservation = findById(id);
 
@@ -160,6 +167,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", key = "#id")
     public Reservation applyDiscount(UUID id, BigDecimal discountedUnitPrice, String reason, String pricedBySub) {
         Reservation reservation = findById(id);
 
@@ -187,6 +195,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @CacheEvict(value = "reservations", key = "#id")
     public Reservation applyFreeStay(UUID id, String reason, String pricedBySub) {
         Reservation reservation = findById(id);
 

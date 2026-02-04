@@ -5,6 +5,8 @@ import com.example.reservation.domain.property.PropertyAccessCode;
 import com.example.reservation.repository.PropertyAccessCodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +33,7 @@ public class PropertyAccessCodeService {
     private final PasswordEncoder passwordEncoder;
     private static final SecureRandom secureRandom = new SecureRandom();
 
+    @Cacheable(value = "accessCodes", key = "#id")
     public PropertyAccessCode findById(UUID id) {
         return accessCodeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Access code not found: " + id));
@@ -82,6 +85,7 @@ public class PropertyAccessCodeService {
     }
 
     @Transactional
+    @CacheEvict(value = "accessCodes", allEntries = true)
     public PropertyAccessCodeResult create(UUID propertyId, String issuedToEmail, String createdBySub, Instant expiresAt) {
         Property property = propertyService.findById(propertyId);
 
@@ -110,6 +114,7 @@ public class PropertyAccessCodeService {
     }
 
     @Transactional
+    @CacheEvict(value = "accessCodes", allEntries = true)
     public PropertyAccessCode redeem(String rawCode, String userSub, String email) {
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("Email manquant dans le token");
@@ -139,6 +144,7 @@ public class PropertyAccessCodeService {
     }
 
     @Transactional
+    @CacheEvict(value = "accessCodes", key = "#id")
     public PropertyAccessCode revoke(UUID id, String revokedBySub) {
         PropertyAccessCode accessCode = findById(id);
 

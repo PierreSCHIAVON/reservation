@@ -7,6 +7,9 @@ import com.example.reservation.exception.ResourceNotFoundException;
 import com.example.reservation.repository.PropertyRepository;
 import com.example.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ public class PropertyService {
     private final PropertyRepository propertyRepository;
     private final ReservationRepository reservationRepository;
 
+    @Cacheable(value = "properties", key = "#id")
     public Property findById(UUID id) {
         return propertyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Property", id));
@@ -34,6 +38,7 @@ public class PropertyService {
         return propertyRepository.findByOwnerSub(ownerSub);
     }
 
+    @Cacheable(value = "activeProperties", key = "'all'")
     public List<Property> findActiveProperties() {
         return propertyRepository.findByStatus(PropertyStatus.ACTIVE);
     }
@@ -57,6 +62,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(value = "activeProperties", allEntries = true)
     public Property create(String ownerSub, String title, String description, String city, BigDecimal pricePerNight) {
         Property property = Property.builder()
                 .ownerSub(ownerSub)
@@ -71,6 +77,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(value = "properties", key = "#id")
     public Property update(UUID id, String title, String description, String city, BigDecimal pricePerNight) {
         Property property = findById(id);
 
@@ -91,6 +98,10 @@ public class PropertyService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "properties", key = "#id"),
+            @CacheEvict(value = "activeProperties", allEntries = true)
+    })
     public Property activate(UUID id) {
         Property property = findById(id);
 
@@ -103,6 +114,10 @@ public class PropertyService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "properties", key = "#id"),
+            @CacheEvict(value = "activeProperties", allEntries = true)
+    })
     public Property deactivate(UUID id) {
         Property property = findById(id);
 
@@ -123,6 +138,10 @@ public class PropertyService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "properties", key = "#id"),
+            @CacheEvict(value = "activeProperties", allEntries = true)
+    })
     public void delete(UUID id) {
         Property property = findById(id);
         propertyRepository.delete(property);
